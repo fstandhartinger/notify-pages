@@ -1,6 +1,7 @@
 """notify-pages: private unlisted copy pages for Telegram notification cards (stdlib only)."""
 import hmac
 import json
+import math
 import os
 import re
 import socket
@@ -61,6 +62,7 @@ def purge():
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "pages"
+    timeout = 15
     sys_version = ""
 
     def log_message(self, fmt, *args):
@@ -68,7 +70,8 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def _client(self):
-        return (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[0].strip()
+        # the proxy appends the real peer last; earlier entries are client-controlled
+        return (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[-1].strip()
 
     def _send(self, code, body=b"", ctype="text/plain; charset=utf-8", extra=None):
         self.send_response(code)
@@ -90,7 +93,8 @@ class Handler(BaseHTTPRequestHandler):
             hits = [t for t in _misses.get(ip, []) if now - t < MISS_WINDOW] + [now]
             _misses[ip] = hits
             if len(_misses) > 5000:
-                _misses.clear()
+                for key in [k for k, v in _misses.items() if now - v[-1] >= MISS_WINDOW]:
+                    del _misses[key]
         if len(hits) > MISS_LIMIT:
             return self._send(429, b"Too many requests")
         self._send(404, NOT_FOUND, "text/html; charset=utf-8")
@@ -127,7 +131,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             data = self._body()
             html, expires = data["html"], float(data["expires"])
-            assert isinstance(html, str) and html
+            assert isinstance(html, str) and html and math.isfinite(expires)
         except Exception:
             return self._send(400, b"bad body")
         expires = min(expires, time.time() + MAX_AGE)
