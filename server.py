@@ -3,6 +3,7 @@ import hmac
 import json
 import os
 import re
+import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -162,7 +163,17 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, b"deleted")
 
 
+class DualStack(ThreadingHTTPServer):
+    # health checks probe "localhost", which resolves to ::1 first
+    address_family = socket.AF_INET6
+    daemon_threads = True
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 if __name__ == "__main__":
     os.makedirs(DIR, mode=0o700, exist_ok=True)
     threading.Thread(target=purge, daemon=True).start()
-    ThreadingHTTPServer(("0.0.0.0", int(os.environ.get("PORT", "8080"))), Handler).serve_forever()
+    DualStack(("::", int(os.environ.get("PORT", "8080"))), Handler).serve_forever()
