@@ -1,4 +1,9 @@
 """notify-pages: private unlisted copy pages for Telegram notification cards (stdlib only)."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from artifact_ui import decorate, valid
+
 import hmac
 import json
 import math
@@ -112,7 +117,7 @@ class Handler(BaseHTTPRequestHandler):
         if m and ID_RE.match(m.group(1)):
             page = _load(m.group(1))
             if page:
-                return self._send(200, page["html"].encode("utf-8"), "text/html; charset=utf-8",
+                return self._send(200, decorate(page).encode("utf-8"), "text/html; charset=utf-8",
                                   {"Content-Security-Policy": PAGE_CSP})
         return self._miss()
 
@@ -138,7 +143,12 @@ class Handler(BaseHTTPRequestHandler):
         os.makedirs(DIR, mode=0o700, exist_ok=True)
         tmp = _path(m.group(1)) + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"html": html, "expires": expires}, fh)
+            metadata = {"html": html, "expires": expires}
+            if valid(data.get('aid')):
+                metadata['aid'] = data['aid']
+            if isinstance(data.get('linked_ids'), list):
+                metadata['linked_ids'] = list(dict.fromkeys(i for i in data['linked_ids'] if valid(i)))[:20]
+            json.dump(metadata, fh)
         os.replace(tmp, _path(m.group(1)))
         self._send(200, b"stored")
 
