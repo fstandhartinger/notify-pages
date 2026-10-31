@@ -1,0 +1,23 @@
+{
+  "surface": "app:notify-pages",
+  "items": {
+    "app": {
+      "id": "d2497e",
+      "kind": "app",
+      "title": "Kartendetails",
+      "summary": "Diese Anwendung zeigt die ausführlichen Inhalte einer Benachrichtigung. Texte und Tabellen lassen sich kopieren und verknüpfte Artefakte erkennen.",
+      "parent": null,
+      "url": "https://cards.app.mintapis.com",
+      "selector": ".aid",
+      "refs": [
+        {
+          "kind": "code",
+          "target": "github:fstandhartinger/notify-pages@HEAD:server.py",
+          "label": "Anwendung"
+        }
+      ],
+      "links": [],
+      "access": "internal"
+    }
+  }
+}
