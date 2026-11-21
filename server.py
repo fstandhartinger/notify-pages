@@ -14,6 +14,7 @@ import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import logkit
 
 TOKEN = os.environ.get("NOTIFY_PAGES_TOKEN", "")
 DIR = os.environ.get("PAGES_DIR", "/tmp/pages")
@@ -119,7 +120,12 @@ def purge():
         time.sleep(3600)
 
 
-class Handler(BaseHTTPRequestHandler):
+class Handler(logkit.HTTPLogMixin, BaseHTTPRequestHandler):
+    # Structured access lines (logging standard, AGENTS.md). Page ids are the secret: masked in every path; no IPs/UAs.
+    logkit_ip = False
+    logkit_ua = False
+    logkit_path_mask = staticmethod(lambda p: re.sub(r'^/api/press/[^/]+/[^/]+', '/api/press/:id/:id', re.sub(r'^/p/[^/]+', '/p/:id', p)))
+
     server_version = "pages"
     timeout = 15
     sys_version = ""
@@ -384,4 +390,5 @@ class DualStack(ThreadingHTTPServer):
 if __name__ == "__main__":
     os.makedirs(DIR, mode=0o700, exist_ok=True)
     threading.Thread(target=purge, daemon=True).start()
+    logkit.setup(app="notify-pages")
     DualStack(("::", int(os.environ.get("PORT", "8080"))), Handler).serve_forever()
